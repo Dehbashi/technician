@@ -1,21 +1,12 @@
 import 'package:flutter/material.dart';
-import './enter_cellphone.dart';
-import './homescreen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// import './location_page.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-// import 'location_service.dart';
-// import 'package:geolocator/geolocator.dart';
 import 'dart:async';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import './logout_page.dart';
 import 'package:persian/persian.dart';
 import './header.dart';
 import '../constans.dart';
 import './services/order_service.dart';
 import './services/flutter_location_service.dart';
-import 'package:location/location.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 
 class AdminPage extends StatefulWidget {
@@ -29,12 +20,8 @@ class _AdminPageState extends State<AdminPage> {
   @override
   String text = "Stop Service";
   late String _cellNumber = '';
-  late String _userAgent;
-  late String _ip;
   // late bool _checkVpn;
   late Timer _timer;
-  late String? _lat;
-  late String? _long;
   List<Order> orders = [
     Order(
       id: 1011,
@@ -113,9 +100,10 @@ class _AdminPageState extends State<AdminPage> {
   }
 
   void _startTimer() {
-    _timer = Timer.periodic(Duration(seconds: 5), (_) {
-      // _getCurrentPosition();
-      _getLocationData();
+    final locationService = FlutterLocationService(); // Create an instance
+    _timer = Timer.periodic(Duration(seconds: 5), (_) async {
+      await FlutterLocationService.getLocationData();
+      await locationService.sendToLian(); // Call sendToLian on the instance
     });
   }
 
@@ -123,61 +111,7 @@ class _AdminPageState extends State<AdminPage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       _cellNumber = prefs.getString('cellNumber') ?? '';
-      _userAgent = prefs.getString('userAgent') ?? '';
-      _ip = prefs.getString('ip') ?? '';
     });
-  }
-
-  late LocationData _locationData;
-
-  Future<void> _getLocationData() async {
-    try {
-      LocationData? locationData =
-          await FlutterLocationService.getLocationData();
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      setState(() {
-        _locationData = locationData ?? LocationData.fromMap({});
-        prefs.setString('lat', _locationData.latitude.toString());
-        prefs.setString('long', _locationData.longitude.toString());
-      });
-      _lat = prefs.getString('lat');
-      _long = prefs.getString('long');
-      sendToLian();
-      print(_locationData);
-      print('lat $_lat and long $_long');
-    } catch (e) {
-      debugPrint(e.toString());
-    }
-  }
-
-  Future<void> sendToLian() async {
-    final url = Uri.parse(
-        'https://s1.lianerp.com/api/public/user/provider-log-location');
-
-    final headers = {
-      'TokenPublic': 'bpbm',
-      'Content-Type': 'application/json',
-    };
-
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    final _token = prefs.getString('token');
-
-    final body = jsonEncode({
-      'ip': _ip,
-      'phone_number': _cellNumber,
-      'userAgent': _userAgent,
-      'lat': _lat,
-      'long': _long,
-      'token': _token,
-    });
-
-    final response = await http.post(url, headers: headers, body: body);
-    print('Your Lian response is ${response.body}');
-    print(body);
-    print('cellNumber');
-    // if (response.statusCode == 200) {
-    print('Your response code is ${response.statusCode}');
-    // }
   }
 
   Future<void> _clearSharedPreferences() async {
